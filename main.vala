@@ -52,7 +52,7 @@ class Litter.Application : Adw.Application {
       autohide = false
     };
     
-    set_margin(tabview, 20);
+    set_margin(tabview, 10);
     this.on_tab_create();
 
     var layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);

@@ -3,6 +3,8 @@
 
 class Litter.Application : Adw.Application {
   private Adw.ApplicationWindow? window = null;
+  private Adw.ViewStack? content = null;
+
   private Adw.TabView? tabview = null;
   private Adw.TabBar? tabhead = null;
 
@@ -34,22 +36,27 @@ class Litter.Application : Adw.Application {
     this.add_action(action);
     this.set_accels_for_action("app.tab-create", { "<Control><Shift>t" });
 
+    // TabView
+
     this.tabview = new Adw.TabView() {
       hexpand = true,
       vexpand = true
     };
+
+    // TabButton 
 
     var tabhead_badge = new Adw.TabButton() {
       view = this.tabview
     };
     tabhead_badge.clicked.connect(this.on_action_tab_create);
 
-
     var tabhead_controls_beg = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
     tabhead_controls_beg.append(tabhead_badge);
 
     var tabhead_controls_end = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
     tabhead_controls_end.append(new Gtk.WindowControls(Gtk.PackType.END));
+
+    // TabBar
 
     this.tabhead = new Adw.TabBar() {
       view = this.tabview,
@@ -59,13 +66,43 @@ class Litter.Application : Adw.Application {
     };
 
     this.tabview.close_page.connect(this.on_close_page);
+    this.tabview.notify["selected-page"].connect(() => {
+      this.content.set_visible_child_name("workspace");
+    });
     
-    set_margin(tabview, 10);
+    set_margin(tabview, 8);
     this.on_action_tab_create();
 
+    //
+    var placeholder = new Adw.Bin() {
+      hexpand = true,
+      vexpand = true,
+      halign = Gtk.Align.CENTER,
+      valign = Gtk.Align.CENTER,
+    };
+    var placelayout = new Gtk.Box(Gtk.Orientation.VERTICAL, 20);
+    var placebutton = new Gtk.Button() {
+      label = "Open a new terminal",
+      hexpand = false,
+      vexpand = false,
+      halign = Gtk.Align.CENTER,
+      valign = Gtk.Align.CENTER,
+      has_frame = true
+    };
+    placebutton.add_css_class("suggested-action");
+    placelayout.append(new Gtk.Label("There are no open terminals."));
+    placelayout.append(placebutton);
+    placeholder.set_child(placelayout);
+    placebutton.clicked.connect(this.on_action_tab_create);
+
+    this.content = new Adw.ViewStack();
+    this.content.add_named(this.tabview, "workspace");
+    this.content.add_named(placeholder, "placeholder");
+    this.content.set_visible_child_name("workspace");
+
     var layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);
-    layout.append(tabhead);
-    layout.append(tabview);
+    layout.append(this.tabhead);
+    layout.append(this.content);
 
     this.window.set_content(layout);
     this.window.present();
@@ -81,10 +118,15 @@ class Litter.Application : Adw.Application {
     // if (this.tabview.n_pages == 0)
     //   this.quit();
 
+    if (this.tabview.n_pages == 0)
+      this.content.set_visible_child_name("placeholder");
+
     return true;
   }
 
   void on_action_tab_create () {
+    this.content.set_visible_child_name("workspace");
+
     var starting_directory = GLib.Environment.get_home_dir();
     var current = this.get_active_terminal();
     if (current != null)

@@ -1,13 +1,18 @@
 /* 2025 Jan Provaznik (jan@provaznik.pro)
  */
 
+int main (string[] argv) {
+  var app = new Litter.Application();
+  return app.run(argv);
+}
+
 class Litter.Application : Adw.Application {
   private Adw.ApplicationWindow? window = null;
   private Adw.ViewStack? content = null;
+  private Gtk.Box? headbox = null;
 
   private Adw.TabView? tabview = null;
   private Adw.TabBar? tabhead = null;
-  private Gtk.Box? headbox = null;
 
   public Application () {
     Object(application_id: "pro.provaznik.Litter", 
@@ -75,8 +80,8 @@ class Litter.Application : Adw.Application {
 
     this.tabview.close_page.connect(this.on_close_page);
     this.tabview.notify["selected-page"].connect(() => {
-      //this.content.set_visible_child_name("workspace");
-      //this.do_detect_process();
+      this.content.set_visible_child_name("workspace");
+      this.do_detect_process();
     });
 
     // Placeholder
@@ -134,80 +139,13 @@ class Litter.Application : Adw.Application {
     this.on_action_tab_create();
 
     // Pretty lookin', what's cookin'?
+
     GLib.Timeout.add(500, this.on_timer_detect_process);
   }
 
-  bool on_timer_detect_process () {
-    this.do_detect_process();
-    return true;
-  }
+  // Do the thing, do the thing.
 
-  void do_detect_process () {
-    var? term = get_active_terminal();
-    if (term == null)
-      return;
-
-    var? pty = term.pty;
-    if (pty == null)
-      return;
-
-    int tfd = pty.fd;
-    if (tfd == 0)
-      return;
-
-    // Get foreground process
-    int pid = Posix.tcgetpgrp(tfd);
-
-    // Get foreground process owner
-    Posix.Stat? buf = null;
-    Posix.stat(@"/proc/$pid", out buf);
-    int uid = (int) buf.st_uid;
-
-    if (uid == 0) {
-      this.headbox_apply_style(true, false);
-      return;
-    }
-    else {
-      this.headbox_apply_style(false, false);
-    }
-
-    // Get foreground process commandline
-    string? cmdline = null;
-    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
-
-    string cmdname = GLib.Path.get_basename(cmdline);
-    if (cmdname == "ssh") {
-      this.headbox_apply_style(false, true);
-    }
-    else {
-      this.headbox_apply_style(false, false);
-    }
-  }
-
-  void headbox_apply_style (bool super, bool remote) {
-    if (remote)
-      this.headbox.add_css_class("hl-cmd-remote");
-    else
-      this.headbox.remove_css_class("hl-cmd-remote");
-
-    if (super)
-      this.headbox.add_css_class("hl-cmd-super");
-    else
-      this.headbox.remove_css_class("hl-cmd-super");
-  }
-
-  Vte.Terminal? get_active_terminal () {
-    return (this.tabview.selected_page?.child as Vte.Terminal);
-  }
-
-  bool on_close_page (Adw.TabPage page) {
-    this.tabview.close_page_finish(page, true);
-    if (this.tabview.n_pages == 0)
-      this.content.set_visible_child_name("placeholder");
-    return true;
-  }
-
-  void on_action_tab_create () {
+  void do_tab_create () {
     this.content.set_visible_child_name("workspace");
 
     var starting_directory = get_starting_directory(
@@ -257,6 +195,57 @@ class Litter.Application : Adw.Application {
     this.window.set_focus(term);
   }
 
+  void do_detect_process () {
+    var? term = get_active_terminal();
+    if (term == null)
+      return;
+
+    var? pty = term.pty;
+    if (pty == null)
+      return;
+
+    int tfd = pty.fd;
+    if (tfd == 0)
+      return;
+
+    // Get foreground process
+    int pid = Posix.tcgetpgrp(tfd);
+
+    // Get foreground process owner
+    Posix.Stat? buf = null;
+    Posix.stat(@"/proc/$pid", out buf);
+    int uid = (int) buf.st_uid;
+
+    if (uid == 0) {
+      this.headbox_apply_style(true, false);
+      return;
+    }
+    else {
+      this.headbox_apply_style(false, false);
+    }
+
+    // Get foreground process commandline
+    string? cmdline = null;
+    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+
+    string cmdname = GLib.Path.get_basename(cmdline);
+    if (cmdname == "ssh") {
+      this.headbox_apply_style(false, true);
+    }
+    else {
+      this.headbox_apply_style(false, false);
+    }
+  }
+
+  // Event handlers
+
+  bool on_close_page (Adw.TabPage page) {
+    this.tabview.close_page_finish(page, true);
+    if (this.tabview.n_pages == 0)
+      this.content.set_visible_child_name("placeholder");
+    return true;
+  }
+
   void on_terminal_child_death (Vte.Terminal term, int status) {
     print("Child death with %d status\n", status);
 
@@ -274,30 +263,20 @@ class Litter.Application : Adw.Application {
       page.title = term.window_title;
   }
 
-  Adw.TabPage? get_page_by_child (Gtk.Widget child) {
-    var model = this.tabview.pages;
-    var count = model.get_n_items();
-    for (var index = 0; index < count; ++index) {
-      var? page = (model.get_item(index) as Adw.TabPage);
-      if (page?.child == child)
-        return page;
-    }
-    return null;
-  }
-
   void on_terminal_child_spawn (Vte.Terminal term, GLib.Pid pid, GLib.Error? err) {
     print("Child spawn with %d pid\n", pid);
   }
 
-  // void on_tab_next () {
-  //   if (! this.tabview.select_next_page())
-  //     this.tabview.selected_page = this.tabview.get_nth_page(0);
-  // }
+  bool on_timer_detect_process () {
+    this.do_detect_process();
+    return true;
+  }
 
-  // void on_tab_prev () {
-  //   if (! this.tabview.select_previous_page())
-  //     this.tabview.selected_page = this.tabview.get_nth_page(this.tabview.n_pages - 1);
-  // }
+  // Action handlers
+
+  void on_action_tab_create () {
+    this.do_tab_create();
+  }
 
   void on_action_clipboard_copy () {
     var? term = this.get_active_terminal();
@@ -323,7 +302,40 @@ class Litter.Application : Adw.Application {
       term.font_scale = Math.fmax(0.0, term.font_scale - 0.1);
   }
 
+  // Really useful helpers
+
+  Vte.Terminal? get_active_terminal () {
+    return (this.tabview.selected_page?.child as Vte.Terminal);
+  }
+
+  Adw.TabPage? get_page_by_child (Gtk.Widget child) {
+    var model = this.tabview.pages;
+    var count = model.get_n_items();
+    for (var index = 0; index < count; ++index) {
+      var? page = (model.get_item(index) as Adw.TabPage);
+      if (page?.child == child)
+        return page;
+    }
+    return null;
+  }
+
+  // Styling helpers
+
+  void headbox_apply_style (bool super, bool remote) {
+    if (remote)
+      this.headbox.add_css_class("hl-cmd-remote");
+    else
+      this.headbox.remove_css_class("hl-cmd-remote");
+
+    if (super)
+      this.headbox.add_css_class("hl-cmd-super");
+    else
+      this.headbox.remove_css_class("hl-cmd-super");
+  }
+
 }
+
+// I am positive there must be a better way to do this.
 
 Gdk.RGBA rgba_from_string (string value) {
   var target = Gdk.RGBA();
@@ -335,10 +347,5 @@ string get_starting_directory (Vte.Terminal? term) {
   if (term?.current_directory_uri != null)
     return GLib.Filename.from_uri(term.current_directory_uri, null);
   return GLib.Environment.get_home_dir();
-}
-
-int main (string[] argv) {
-  var app = new Litter.Application();
-  return app.run(argv);
 }
 

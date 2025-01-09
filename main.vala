@@ -19,10 +19,7 @@ class Litter.Application : Adw.Application {
       default_height = 720
     };
 
-    // GLib.Timeout.add(1000, () => {
-    //   terminal.set_color_background(rgba_from_string("#000"));
-    //   return false;
-    // });
+    // Action!
 
     GLib.SimpleAction? action = null;
 
@@ -76,8 +73,8 @@ class Litter.Application : Adw.Application {
 
     this.tabview.close_page.connect(this.on_close_page);
     this.tabview.notify["selected-page"].connect(() => {
-      this.content.set_visible_child_name("workspace");
-      this.do_detect_process();
+      //this.content.set_visible_child_name("workspace");
+      //this.do_detect_process();
     });
 
     // Placeholder
@@ -134,7 +131,7 @@ class Litter.Application : Adw.Application {
     this.content.set_visible_child_name("workspace");
     this.on_action_tab_create();
 
-    GLib.Timeout.add(500, this.on_timer_detect_process);
+    //GLib.Timeout.add(500, this.on_timer_detect_process);
   }
 
   bool on_timer_detect_process () {
@@ -197,7 +194,7 @@ class Litter.Application : Adw.Application {
   }
 
   Vte.Terminal? get_active_terminal () {
-    return (this.tabview?.selected_page?.child as Vte.Terminal);
+    return (this.tabview.selected_page?.child as Vte.Terminal);
   }
 
   bool on_close_page (Adw.TabPage page) {
@@ -210,18 +207,15 @@ class Litter.Application : Adw.Application {
   void on_action_tab_create () {
     this.content.set_visible_child_name("workspace");
 
-    var starting_directory = GLib.Environment.get_home_dir();
-    var current = this.get_active_terminal();
-    if (current != null)
-      starting_directory = GLib.Filename.from_uri(
-        current.current_directory_uri, null);
+    var starting_directory = get_starting_directory(
+      this.get_active_terminal());
 
     var term = new Vte.Terminal();
     var page = this.tabview.append(term);
     this.tabview.set_selected_page(page);
 
     term.set_color_background(
-      rgba_from_string("#00000000"));
+      rgba_from_string("rgba(0, 0, 0, 0)"));
     term.set_color_foreground(
       rgba_from_string("#fff"));
     term.font_desc = 
@@ -318,11 +312,10 @@ Gdk.RGBA rgba_from_string (string value) {
   return target;
 }
 
-void set_margin (Gtk.Widget target, int margin) {
-    target.margin_start = margin;
-    target.margin_end = margin;
-    target.margin_top = margin;
-    target.margin_bottom = margin;
+string get_starting_directory (Vte.Terminal? term) {
+  if (term?.current_directory_uri != null)
+    return GLib.Filename.from_uri(term.current_directory_uri, null);
+  return GLib.Environment.get_home_dir();
 }
 
 int main (string[] argv) {

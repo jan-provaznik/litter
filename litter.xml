@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/pro/provaznik/Litter">
+    <file alias="style.css">resources/style.css</file>
+    <file alias="style-dark.css">resources/style-dark.css</file>
+  </gresource>
+</gresources>
+

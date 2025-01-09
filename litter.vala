@@ -15,8 +15,10 @@ class Litter.Application : Adw.Application {
   private Adw.TabBar? tabhead = null;
 
   public Application () {
-    Object(application_id: "pro.provaznik.Litter", 
-      flags: GLib.ApplicationFlags.NON_UNIQUE);
+    Object(
+      flags: GLib.ApplicationFlags.NON_UNIQUE,
+      version: "0.2.1",
+      application_id: "pro.provaznik.Litter");
   }
 
   public override void activate () {
@@ -76,12 +78,12 @@ class Litter.Application : Adw.Application {
       hexpand = true,
       inverted = false
     };
-    this.tabhead.set_css_classes({ "inline" });
+    this.tabhead.add_css_class("inline");
 
     this.tabview.close_page.connect(this.on_close_page);
     this.tabview.notify["selected-page"].connect(() => {
       this.content.set_visible_child_name("workspace");
-      this.do_detect_process();
+      this.do_update_highlight();
     });
 
     // Placeholder
@@ -92,7 +94,7 @@ class Litter.Application : Adw.Application {
       halign = Gtk.Align.CENTER,
       valign = Gtk.Align.CENTER,
     };
-    var placelayout = new Gtk.Box(Gtk.Orientation.VERTICAL, 20);
+
     var placebutton = new Gtk.Button() {
       label = "Open a new terminal",
       hexpand = false,
@@ -103,10 +105,13 @@ class Litter.Application : Adw.Application {
     };
     placebutton.add_css_class("suggested-action");
     placebutton.add_css_class("pill");
+    placebutton.clicked.connect(this.on_action_tab_create);
+
+    var placelayout = new Gtk.Box(Gtk.Orientation.VERTICAL, 20);
     placelayout.append(new Gtk.Label("There are no open terminals."));
     placelayout.append(placebutton);
+
     placeholder.set_child(placelayout);
-    placebutton.clicked.connect(this.on_action_tab_create);
 
     // Views
 
@@ -140,7 +145,7 @@ class Litter.Application : Adw.Application {
 
     // Pretty lookin', what's cookin'?
 
-    GLib.Timeout.add(500, this.on_timer_detect_process);
+    GLib.Timeout.add(100, this.on_timer_update_highlight);
   }
 
   // Do the thing, do the thing.
@@ -175,8 +180,8 @@ class Litter.Application : Adw.Application {
         rgba_from_string("#4FD2FD"),
         rgba_from_string("#F6F5F4")
       });
-    term.font_desc = 
-      Pango.FontDescription.from_string("Hack Normal 15");
+    term.set_font(
+      Pango.FontDescription.from_string("hack normal 15"));
 
     term.spawn_async(
       Vte.PtyFlags.DEFAULT,
@@ -188,6 +193,9 @@ class Litter.Application : Adw.Application {
       -1,
       null,
       this.on_terminal_child_spawn);
+
+    // These have to be disconnected at some point
+
     term.child_exited.connect(this.on_terminal_child_death);
     term.window_title_changed.connect(this.on_terminal_window_title_changed);
 
@@ -195,7 +203,7 @@ class Litter.Application : Adw.Application {
     this.window.set_focus(term);
   }
 
-  void do_detect_process () {
+  void do_update_highlight () {
     var? term = get_active_terminal();
     if (term == null)
       return;
@@ -211,29 +219,47 @@ class Litter.Application : Adw.Application {
     // Get foreground process
     int pid = Posix.tcgetpgrp(tfd);
 
+    // Slight optimization.
+    //
+    // This might suffer from race conditions. Process
+    // identifiers (pid) may be eventually reused by the system.
+
+    int? old = term.get_data<int>("litter-last-pid");
+    term.set_data<int>("litter-last-pid", pid);
+
+    if (old != null)
+      if (old == pid)
+        return;
+
     // Get foreground process owner
     Posix.Stat? buf = null;
     Posix.stat(@"/proc/$pid", out buf);
     int uid = (int) buf.st_uid;
 
+    // (1) Remove all highlights
+    this.headbox.remove_css_class("hl-cmd-user-root");
+    this.headbox.remove_css_class("hl-cmd-task-remote");
+
+    // (2) Highlight tasks running as root
     if (uid == 0) {
-      this.headbox_apply_style(true, false);
+      this.headbox.add_css_class("hl-cmd-user-root");
       return;
     }
-    else {
-      this.headbox_apply_style(false, false);
-    }
 
-    // Get foreground process commandline
+    // Get foreground process program name (from cmdline)
     string? cmdline = null;
-    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+    bool success = FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+    if (! success)
+      return;
+    if (cmdline == null)
+      return;
 
     string cmdname = GLib.Path.get_basename(cmdline);
+
+    // (3) Highlight specific tasks, like ssh (and only ssh at this time)
     if (cmdname == "ssh") {
-      this.headbox_apply_style(false, true);
-    }
-    else {
-      this.headbox_apply_style(false, false);
+      this.headbox.add_css_class("hl-cmd-task-remote");
+      return;
     }
   }
 
@@ -267,8 +293,8 @@ class Litter.Application : Adw.Application {
     print("Child spawn with %d pid\n", pid);
   }
 
-  bool on_timer_detect_process () {
-    this.do_detect_process();
+  bool on_timer_update_highlight () {
+    this.do_update_highlight ();
     return true;
   }
 
@@ -317,20 +343,6 @@ class Litter.Application : Adw.Application {
         return page;
     }
     return null;
-  }
-
-  // Styling helpers
-
-  void headbox_apply_style (bool super, bool remote) {
-    if (remote)
-      this.headbox.add_css_class("hl-cmd-remote");
-    else
-      this.headbox.remove_css_class("hl-cmd-remote");
-
-    if (super)
-      this.headbox.add_css_class("hl-cmd-super");
-    else
-      this.headbox.remove_css_class("hl-cmd-super");
   }
 
 }

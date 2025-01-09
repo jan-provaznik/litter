@@ -1,10 +1,7 @@
-.hl-cmd-super {
-  background: var(--accent-red);
+.hl-cmd-user-root {
+  background: var(--destructive-bg-color);
 }
-.hl-cmd-remote {
+.hl-cmd-task-remote {
   background: var(--accent-purple);
 }
 
-.term {
-  color: #f00;
-}

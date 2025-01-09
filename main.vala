@@ -40,40 +40,27 @@ class Litter.Application : Adw.Application {
 
     this.tabview = new Adw.TabView() {
       hexpand = true,
-      vexpand = true
+      vexpand = true,
+      margin_bottom = 8,
+      margin_start = 8,
+      margin_end = 8,
+      margin_top = 8
     };
-
-    // TabButton 
-
-    var tabhead_badge = new Adw.TabButton() {
-      view = this.tabview
-    };
-    tabhead_badge.clicked.connect(this.on_action_tab_create);
-
-    var tabhead_controls_beg = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
-    tabhead_controls_beg.append(tabhead_badge);
-
-    var tabhead_controls_end = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
-    tabhead_controls_end.append(new Gtk.WindowControls(Gtk.PackType.END));
-
-    // TabBar
-
     this.tabhead = new Adw.TabBar() {
       view = this.tabview,
       autohide = false,
-      start_action_widget = tabhead_controls_beg,
-      end_action_widget = tabhead_controls_end
+      hexpand = true,
+      inverted = false
     };
+    this.tabhead.set_css_classes({ "inline" });
 
     this.tabview.close_page.connect(this.on_close_page);
     this.tabview.notify["selected-page"].connect(() => {
       this.content.set_visible_child_name("workspace");
     });
-    
-    set_margin(tabview, 8);
-    this.on_action_tab_create();
 
-    //
+    // Placeholder
+
     var placeholder = new Adw.Bin() {
       hexpand = true,
       vexpand = true,
@@ -90,18 +77,31 @@ class Litter.Application : Adw.Application {
       has_frame = true
     };
     placebutton.add_css_class("suggested-action");
+    placebutton.add_css_class("pill");
     placelayout.append(new Gtk.Label("There are no open terminals."));
     placelayout.append(placebutton);
     placeholder.set_child(placelayout);
     placebutton.clicked.connect(this.on_action_tab_create);
 
+    // Views
+
     this.content = new Adw.ViewStack();
     this.content.add_named(this.tabview, "workspace");
     this.content.add_named(placeholder, "placeholder");
-    this.content.set_visible_child_name("workspace");
+    this.content.set_visible_child_name("placeholder");
+
+    // Header
+
+    var headerbase = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    headerbase.append(this.tabhead);
+    headerbase.append(new Gtk.WindowControls(Gtk.PackType.END) { margin_end = 4 });
+
+    var headerwrap = new Gtk.WindowHandle() {
+      child = headerbase
+    };
 
     var layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);
-    layout.append(this.tabhead);
+    layout.append(headerwrap);
     layout.append(this.content);
 
     this.window.set_content(layout);
@@ -115,12 +115,8 @@ class Litter.Application : Adw.Application {
 
   bool on_close_page (Adw.TabPage page) {
     this.tabview.close_page_finish(page, true);
-    // if (this.tabview.n_pages == 0)
-    //   this.quit();
-
     if (this.tabview.n_pages == 0)
       this.content.set_visible_child_name("placeholder");
-
     return true;
   }
 

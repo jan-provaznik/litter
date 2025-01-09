@@ -10,7 +10,8 @@ class Litter.Application : Adw.Application {
   private Gtk.Box? headbox = null;
 
   public Application () {
-    Object(application_id : "pro.provaznik.Litter");
+    Object(application_id: "pro.provaznik.Litter", 
+      flags: GLib.ApplicationFlags.NON_UNIQUE);
   }
 
   public override void activate () {

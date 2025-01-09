@@ -17,7 +17,8 @@ class Litter.Application : Adw.Application {
   public override void activate () {
     this.window = new Adw.ApplicationWindow (this) {
       default_width = 1280,
-      default_height = 720
+      default_height = 720,
+      title = "Litter"
     };
 
     // Action!
@@ -132,7 +133,8 @@ class Litter.Application : Adw.Application {
     this.content.set_visible_child_name("workspace");
     this.on_action_tab_create();
 
-    //GLib.Timeout.add(500, this.on_timer_detect_process);
+    // Pretty lookin', what's cookin'?
+    GLib.Timeout.add(500, this.on_timer_detect_process);
   }
 
   bool on_timer_detect_process () {
@@ -215,10 +217,26 @@ class Litter.Application : Adw.Application {
     var page = this.tabview.append(term);
     this.tabview.set_selected_page(page);
 
-    term.set_color_background(
-      rgba_from_string("rgba(0, 0, 0, 0)"));
-    term.set_color_foreground(
-      rgba_from_string("#fff"));
+    term.set_colors(
+      rgba_from_string("#ffffff"),
+      rgba_from_string("#00000000"), {
+        rgba_from_string("#241F31"),
+        rgba_from_string("#C01C28"),
+        rgba_from_string("#2EC27E"),
+        rgba_from_string("#F5C211"),
+        rgba_from_string("#1E78E4"),
+        rgba_from_string("#9841BB"),
+        rgba_from_string("#0AB9DC"),
+        rgba_from_string("#C0BFBC"),
+        rgba_from_string("#5E5C64"),
+        rgba_from_string("#ED333B"),
+        rgba_from_string("#57E389"),
+        rgba_from_string("#F8E45C"),
+        rgba_from_string("#51A1FF"),
+        rgba_from_string("#C061CB"),
+        rgba_from_string("#4FD2FD"),
+        rgba_from_string("#F6F5F4")
+      });
     term.font_desc = 
       Pango.FontDescription.from_string("Hack Normal 15");
 

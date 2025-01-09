@@ -1,0 +1,7 @@
+.hl-cmd-super {
+  background: var(--accent-red);
+}
+.hl-cmd-remote {
+  background: var(--accent-purple);
+}
+

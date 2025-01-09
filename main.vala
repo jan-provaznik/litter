@@ -7,6 +7,11 @@ class Litter.Application : Adw.Application {
 
   private Adw.TabView? tabview = null;
   private Adw.TabBar? tabhead = null;
+  private Gtk.Box? headbox = null;
+
+  public Application () {
+    Object(application_id : "pro.provaznik.Litter");
+  }
 
   public override void activate () {
     this.window = new Adw.ApplicationWindow (this) {
@@ -31,6 +36,16 @@ class Litter.Application : Adw.Application {
     this.add_action(action);
     this.set_accels_for_action("app.paste", { "<Control><Shift>v" });
 
+    action = new GLib.SimpleAction("font-size-inc", null);
+    action.activate.connect(this.on_action_font_size_inc);
+    this.add_action(action);
+    this.set_accels_for_action("app.font-size-inc", { "<Control>plus" });
+
+    action = new GLib.SimpleAction("font-size-dec", null);
+    action.activate.connect(this.on_action_font_size_dec);
+    this.add_action(action);
+    this.set_accels_for_action("app.font-size-dec", { "<Control>minus" });
+
     action = new GLib.SimpleAction("tab-create", null);
     action.activate.connect(this.on_action_tab_create);
     this.add_action(action);
@@ -44,7 +59,12 @@ class Litter.Application : Adw.Application {
       margin_bottom = 8,
       margin_start = 8,
       margin_end = 8,
-      margin_top = 8
+      margin_top = 8,
+
+      shortcuts = (
+        Adw.TabViewShortcuts.CONTROL_TAB | 
+        Adw.TabViewShortcuts.CONTROL_SHIFT_TAB
+      )
     };
     this.tabhead = new Adw.TabBar() {
       view = this.tabview,
@@ -57,6 +77,7 @@ class Litter.Application : Adw.Application {
     this.tabview.close_page.connect(this.on_close_page);
     this.tabview.notify["selected-page"].connect(() => {
       this.content.set_visible_child_name("workspace");
+      this.do_detect_process();
     });
 
     // Placeholder
@@ -88,25 +109,91 @@ class Litter.Application : Adw.Application {
     this.content = new Adw.ViewStack();
     this.content.add_named(this.tabview, "workspace");
     this.content.add_named(placeholder, "placeholder");
-    this.content.set_visible_child_name("placeholder");
 
     // Header
 
-    var headerbase = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
-    headerbase.append(this.tabhead);
-    headerbase.append(new Gtk.WindowControls(Gtk.PackType.END) { margin_end = 4 });
+    this.headbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    this.headbox.append(this.tabhead);
+    this.headbox.append(new Gtk.WindowControls(Gtk.PackType.END) { margin_end = 4 });
 
     var headerwrap = new Gtk.WindowHandle() {
-      child = headerbase
+      child = this.headbox
     };
 
     var layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);
     layout.append(headerwrap);
     layout.append(this.content);
 
+    // Window content
+  
     this.window.set_content(layout);
     this.window.present();
 
+    // Start with a new terminal
+
+    this.content.set_visible_child_name("workspace");
+    this.on_action_tab_create();
+
+    GLib.Timeout.add(500, this.on_timer_detect_process);
+  }
+
+  bool on_timer_detect_process () {
+    this.do_detect_process();
+    return true;
+  }
+
+  void do_detect_process () {
+    var? term = get_active_terminal();
+    if (term == null)
+      return;
+
+    var? pty = term.pty;
+    if (pty == null)
+      return;
+
+    int tfd = pty.fd;
+    if (tfd == 0)
+      return;
+
+    // Get foreground process
+    int pid = Posix.tcgetpgrp(tfd);
+
+    // Get foreground process owner
+    Posix.Stat? buf = null;
+    Posix.stat(@"/proc/$pid", out buf);
+    int uid = (int) buf.st_uid;
+
+    if (uid == 0) {
+      this.headbox_apply_style(true, false);
+      return;
+    }
+    else {
+      this.headbox_apply_style(false, false);
+    }
+
+    // Get foreground process commandline
+    string? cmdline = null;
+    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+
+    string cmdname = GLib.Path.get_basename(cmdline);
+    if (cmdname == "ssh") {
+      this.headbox_apply_style(false, true);
+    }
+    else {
+      this.headbox_apply_style(false, false);
+    }
+  }
+
+  void headbox_apply_style (bool super, bool remote) {
+    if (remote)
+      this.headbox.add_css_class("hl-cmd-remote");
+    else
+      this.headbox.remove_css_class("hl-cmd-remote");
+
+    if (super)
+      this.headbox.add_css_class("hl-cmd-super");
+    else
+      this.headbox.remove_css_class("hl-cmd-super");
   }
 
   Vte.Terminal? get_active_terminal () {
@@ -209,6 +296,18 @@ class Litter.Application : Adw.Application {
     var? term = this.get_active_terminal();
     if (term != null)
       term.paste_clipboard();
+  }
+
+  void on_action_font_size_inc () {
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.font_scale = term.font_scale + 0.1;
+  }
+
+  void on_action_font_size_dec () {
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.font_scale = Math.fmax(0.0, term.font_scale - 0.1);
   }
 
 }

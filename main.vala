@@ -11,49 +11,57 @@ class Litter.Application : Adw.Application {
       default_width = 1280,
       default_height = 720
     };
-    this.window.set_title("Hello, world?");
 
     // GLib.Timeout.add(1000, () => {
     //   terminal.set_color_background(rgba_from_string("#000"));
     //   return false;
     // });
 
-    var saCopy = new GLib.SimpleAction("copy", null);
-    saCopy.activate.connect(this.on_clipboard_copy);
-    this.add_action(saCopy);
+    GLib.SimpleAction? action = null;
+
+    action = new GLib.SimpleAction("copy", null);
+    action.activate.connect(this.on_action_clipboard_copy);
+    this.add_action(action);
     this.set_accels_for_action("app.copy", { "<Control><Shift>c" });
 
-    var saPaste = new GLib.SimpleAction("paste", null);
-    saPaste.activate.connect(this.on_clipboard_paste);
-    this.add_action(saPaste);
+    action = new GLib.SimpleAction("paste", null);
+    action.activate.connect(this.on_action_clipboard_paste);
+    this.add_action(action);
     this.set_accels_for_action("app.paste", { "<Control><Shift>v" });
 
-    var saTabNew = new GLib.SimpleAction("tab-new", null);
-    saTabNew.activate.connect(this.on_tab_create);
-    this.add_action(saTabNew);
-    this.set_accels_for_action("app.tab-new", { "<Control><Shift>t" });
-
-    // var saTabNext = new GLib.SimpleAction("tab-next", null);
-    // saTabNext.activate.connect(this.on_tab_next);
-    // this.add_action(saTabNext);
-    // this.set_accels_for_action("app.tab-next", { "<Control>tab" });
-
-    // var saTabPrev = new GLib.SimpleAction("tab-prev", null);
-    // saTabPrev.activate.connect(this.on_tab_prev);
-    // this.add_action(saTabPrev);
-    // this.set_accels_for_action("app.tab-prev", { "<Control><Shift>tab" });
+    action = new GLib.SimpleAction("tab-create", null);
+    action.activate.connect(this.on_action_tab_create);
+    this.add_action(action);
+    this.set_accels_for_action("app.tab-create", { "<Control><Shift>t" });
 
     this.tabview = new Adw.TabView() {
       hexpand = true,
       vexpand = true
     };
+
+    var tabhead_badge = new Adw.TabButton() {
+      view = this.tabview
+    };
+    tabhead_badge.clicked.connect(this.on_action_tab_create);
+
+
+    var tabhead_controls_beg = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    tabhead_controls_beg.append(tabhead_badge);
+
+    var tabhead_controls_end = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    tabhead_controls_end.append(new Gtk.WindowControls(Gtk.PackType.END));
+
     this.tabhead = new Adw.TabBar() {
       view = this.tabview,
-      autohide = false
+      autohide = false,
+      start_action_widget = tabhead_controls_beg,
+      end_action_widget = tabhead_controls_end
     };
+
+    this.tabview.close_page.connect(this.on_close_page);
     
     set_margin(tabview, 10);
-    this.on_tab_create();
+    this.on_action_tab_create();
 
     var layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);
     layout.append(tabhead);
@@ -64,88 +72,107 @@ class Litter.Application : Adw.Application {
 
   }
 
-  Vte.Terminal? current_terminal () {
+  Vte.Terminal? get_active_terminal () {
     return (this.tabview?.selected_page?.child as Vte.Terminal);
   }
 
-  void on_tab_create () {
+  bool on_close_page (Adw.TabPage page) {
+    this.tabview.close_page_finish(page, true);
+    // if (this.tabview.n_pages == 0)
+    //   this.quit();
+
+    return true;
+  }
+
+  void on_action_tab_create () {
     var starting_directory = GLib.Environment.get_home_dir();
-    var current = this.current_terminal();
+    var current = this.get_active_terminal();
     if (current != null)
       starting_directory = GLib.Filename.from_uri(
         current.current_directory_uri, null);
 
-    print("%s", starting_directory);
+    var term = new Vte.Terminal();
+    var page = this.tabview.append(term);
+    this.tabview.set_selected_page(page);
 
-    var terminal = new Vte.Terminal();
-    var page = this.tabview.append(terminal);
-    this.tabview.selected_page = page;
-
-    terminal.set_color_background(
+    term.set_color_background(
       rgba_from_string("#00000000"));
-    terminal.set_color_foreground(
+    term.set_color_foreground(
       rgba_from_string("#fff"));
-    terminal.font_desc = 
+    term.font_desc = 
       Pango.FontDescription.from_string("Hack Normal 15");
-    terminal.spawn_async(
+
+    term.spawn_async(
       Vte.PtyFlags.DEFAULT,
       starting_directory,
       { "/bin/bash", "--login" },
       null,
-      GLib.SpawnFlags.FILE_AND_ARGV_ZERO,
+      0,
       null,
       -1,
       null,
       this.on_terminal_child_spawn);
-    terminal.child_exited.connect(this.on_terminal_child_death);
-    terminal.window_title_changed.connect(() => {
-      page.title = terminal.window_title;
-    });
+    term.child_exited.connect(this.on_terminal_child_death);
+    term.window_title_changed.connect(this.on_terminal_window_title_changed);
 
-    page.title = "%d".printf(this.tabview.n_pages);
-    this.window.set_focus(terminal);
+    // :)
+    this.window.set_focus(term);
   }
 
-  void on_tab_next () {
-    if (! this.tabview.select_next_page())
-      this.tabview.selected_page = this.tabview.get_nth_page(0);
+  void on_terminal_child_death (Vte.Terminal term, int status) {
+    print("Child death with %d status\n", status);
+
+    term.child_exited.disconnect(this.on_terminal_child_death);
+    term.window_title_changed.disconnect(this.on_terminal_window_title_changed);
+
+    var? page = this.get_page_by_child(term);
+    if (page != null)
+      this.tabview.close_page(page);
   }
 
-  void on_tab_prev () {
-    if (! this.tabview.select_previous_page())
-      this.tabview.selected_page = this.tabview.get_nth_page(this.tabview.n_pages - 1);
+  void on_terminal_window_title_changed (Vte.Terminal term) {
+    var? page = this.tabview.get_page(term);
+    if (page != null)
+      page.title = term.window_title;
   }
 
-  void on_clipboard_copy () {
-    var terminal = current_terminal();
-    if (terminal == null) 
-      return;
-    terminal.copy_clipboard_format(Vte.Format.TEXT);
-  }
-
-  void on_clipboard_paste () {
-    var terminal = current_terminal();
-    if (terminal == null) 
-      return;
-    terminal.paste_clipboard();
-  }
-
-  void on_terminal_child_death (int status) {
-    print("Child death with %d code\n", status);
-
-    this.tabview.close_page(this.tabview.selected_page);
-    if (0 == this.tabview.n_pages)
-      this.quit();
+  Adw.TabPage? get_page_by_child (Gtk.Widget child) {
+    var model = this.tabview.pages;
+    var count = model.get_n_items();
+    for (var index = 0; index < count; ++index) {
+      var? page = (model.get_item(index) as Adw.TabPage);
+      if (page?.child == child)
+        return page;
+    }
+    return null;
   }
 
   void on_terminal_child_spawn (Vte.Terminal term, GLib.Pid pid, GLib.Error? err) {
-    if (err != null) {
-      print("Child spawn ERROR %s\n", err.message);
-      return;
-    }
-
     print("Child spawn with %d pid\n", pid);
   }
+
+  // void on_tab_next () {
+  //   if (! this.tabview.select_next_page())
+  //     this.tabview.selected_page = this.tabview.get_nth_page(0);
+  // }
+
+  // void on_tab_prev () {
+  //   if (! this.tabview.select_previous_page())
+  //     this.tabview.selected_page = this.tabview.get_nth_page(this.tabview.n_pages - 1);
+  // }
+
+  void on_action_clipboard_copy () {
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.copy_clipboard_format(Vte.Format.TEXT);
+  }
+
+  void on_action_clipboard_paste () {
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.paste_clipboard();
+  }
+
 }
 
 Gdk.RGBA rgba_from_string (string value) {

@@ -362,11 +362,13 @@ Gdk.RGBA rgba_from_string (string value) {
 }
 
 string get_starting_directory (Vte.Terminal? term) {
-  if (term?.current_directory_uri == null)
+  var? value = term?.ref_termprop_uri(Vte.TERMPROP_CURRENT_DIRECTORY_URI);
+
+  if (value == null)
     return GLib.Environment.get_home_dir();
 
   try {
-    return GLib.Filename.from_uri(term.current_directory_uri, null);
+    return GLib.Filename.from_uri(value.to_string());
   } 
   catch (GLib.ConvertError err) {
     return GLib.Environment.get_home_dir();

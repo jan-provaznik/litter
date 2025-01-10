@@ -17,7 +17,7 @@ class Litter.Application : Adw.Application {
   public Application () {
     Object(
       flags: GLib.ApplicationFlags.NON_UNIQUE,
-      version: "0.2.1",
+      version: "0.2.2",
       application_id: "pro.provaznik.Litter");
   }
 
@@ -25,7 +25,7 @@ class Litter.Application : Adw.Application {
     this.window = new Adw.ApplicationWindow (this) {
       default_width = 1280,
       default_height = 720,
-      title = "Litter"
+      title = "Litter Terminal"
     };
 
     // Action!
@@ -182,6 +182,8 @@ class Litter.Application : Adw.Application {
       });
     term.set_font(
       Pango.FontDescription.from_string("hack normal 15"));
+    term.set_scrollback_lines(
+      -1);
 
     term.spawn_async(
       Vte.PtyFlags.DEFAULT,
@@ -248,9 +250,13 @@ class Litter.Application : Adw.Application {
 
     // Get foreground process program name (from cmdline)
     string? cmdline = null;
-    bool success = FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
-    if (! success)
+    try {
+      FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+    }
+    catch (GLib.FileError err) {
       return;
+    }
+
     if (cmdline == null)
       return;
 
@@ -356,8 +362,14 @@ Gdk.RGBA rgba_from_string (string value) {
 }
 
 string get_starting_directory (Vte.Terminal? term) {
-  if (term?.current_directory_uri != null)
-    return GLib.Filename.from_uri(term.current_directory_uri, null);
+  if (term?.current_directory_uri != null) {
+    try {
+      return GLib.Filename.from_uri(term.current_directory_uri, null);
+    }
+    catch (GLib.ConvertError err) {
+    }
+  }
+
   return GLib.Environment.get_home_dir();
 }
 

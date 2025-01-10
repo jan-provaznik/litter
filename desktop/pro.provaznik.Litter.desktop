@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name = Litter
+Exec = /usr/local/bin/litter
+Icon = pro.provaznik.Litter
+Type = Application
+Terminal = false
+

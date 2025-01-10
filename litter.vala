@@ -17,7 +17,7 @@ class Litter.Application : Adw.Application {
   public Application () {
     Object(
       flags: GLib.ApplicationFlags.NON_UNIQUE,
-      version: "0.2.1",
+      version: "0.2.2",
       application_id: "pro.provaznik.Litter");
   }
 
@@ -25,7 +25,7 @@ class Litter.Application : Adw.Application {
     this.window = new Adw.ApplicationWindow (this) {
       default_width = 1280,
       default_height = 720,
-      title = "Litter"
+      title = "Litter Terminal"
     };
 
     // Action!
@@ -182,6 +182,8 @@ class Litter.Application : Adw.Application {
       });
     term.set_font(
       Pango.FontDescription.from_string("hack normal 15"));
+    term.set_scrollback_lines(
+      -1);
 
     term.spawn_async(
       Vte.PtyFlags.DEFAULT,
@@ -197,7 +199,7 @@ class Litter.Application : Adw.Application {
     // These have to be disconnected at some point
 
     term.child_exited.connect(this.on_terminal_child_death);
-    term.window_title_changed.connect(this.on_terminal_window_title_changed);
+    term.termprop_changed.connect(this.on_terminal_termprop_changed);
 
     // :)
     this.window.set_focus(term);
@@ -247,10 +249,7 @@ class Litter.Application : Adw.Application {
     }
 
     // Get foreground process program name (from cmdline)
-    string? cmdline = null;
-    bool success = FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
-    if (! success)
-      return;
+    string? cmdline = get_pid_cmdline(pid);
     if (cmdline == null)
       return;
 
@@ -276,17 +275,24 @@ class Litter.Application : Adw.Application {
     print("Child death with %d status\n", status);
 
     term.child_exited.disconnect(this.on_terminal_child_death);
-    term.window_title_changed.disconnect(this.on_terminal_window_title_changed);
+    term.termprop_changed.disconnect(this.on_terminal_termprop_changed);
 
     var? page = this.get_page_by_child(term);
     if (page != null)
       this.tabview.close_page(page);
   }
 
-  void on_terminal_window_title_changed (Vte.Terminal term) {
+  void on_terminal_termprop_changed (Vte.Terminal term, string what) {
     var? page = this.tabview.get_page(term);
-    if (page != null)
-      page.title = term.window_title;
+    if (page == null)
+      return;
+
+    if (what != Vte.TERMPROP_XTERM_TITLE)
+      return;
+
+    string? value = term.get_termprop_string(Vte.TERMPROP_XTERM_TITLE, null);
+    if (value != null)
+      page.title = value;
   }
 
   void on_terminal_child_spawn (Vte.Terminal term, GLib.Pid pid, GLib.Error? err) {
@@ -356,8 +362,27 @@ Gdk.RGBA rgba_from_string (string value) {
 }
 
 string get_starting_directory (Vte.Terminal? term) {
-  if (term?.current_directory_uri != null)
-    return GLib.Filename.from_uri(term.current_directory_uri, null);
-  return GLib.Environment.get_home_dir();
+  var? value = term?.ref_termprop_uri(Vte.TERMPROP_CURRENT_DIRECTORY_URI);
+
+  if (value == null)
+    return GLib.Environment.get_home_dir();
+
+  try {
+    return GLib.Filename.from_uri(value.to_string());
+  } 
+  catch (GLib.ConvertError err) {
+    return GLib.Environment.get_home_dir();
+  }
+}
+
+string? get_pid_cmdline (int pid) {
+  string? cmdline = null;
+  try {
+    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+    return cmdline;
+  }
+  catch (GLib.FileError err) {
+    return null;
+  }
 }
 

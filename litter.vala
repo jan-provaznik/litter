@@ -199,7 +199,7 @@ class Litter.Application : Adw.Application {
     // These have to be disconnected at some point
 
     term.child_exited.connect(this.on_terminal_child_death);
-    term.window_title_changed.connect(this.on_terminal_window_title_changed);
+    term.termprop_changed.connect(this.on_terminal_termprop_changed);
 
     // :)
     this.window.set_focus(term);
@@ -249,14 +249,7 @@ class Litter.Application : Adw.Application {
     }
 
     // Get foreground process program name (from cmdline)
-    string? cmdline = null;
-    try {
-      FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
-    }
-    catch (GLib.FileError err) {
-      return;
-    }
-
+    string? cmdline = get_pid_cmdline(pid);
     if (cmdline == null)
       return;
 
@@ -282,17 +275,24 @@ class Litter.Application : Adw.Application {
     print("Child death with %d status\n", status);
 
     term.child_exited.disconnect(this.on_terminal_child_death);
-    term.window_title_changed.disconnect(this.on_terminal_window_title_changed);
+    term.termprop_changed.disconnect(this.on_terminal_termprop_changed);
 
     var? page = this.get_page_by_child(term);
     if (page != null)
       this.tabview.close_page(page);
   }
 
-  void on_terminal_window_title_changed (Vte.Terminal term) {
+  void on_terminal_termprop_changed (Vte.Terminal term, string what) {
     var? page = this.tabview.get_page(term);
-    if (page != null)
-      page.title = term.window_title;
+    if (page == null)
+      return;
+
+    if (what != Vte.TERMPROP_XTERM_TITLE)
+      return;
+
+    string? value = term.get_termprop_string(Vte.TERMPROP_XTERM_TITLE, null);
+    if (value != null)
+      page.title = value;
   }
 
   void on_terminal_child_spawn (Vte.Terminal term, GLib.Pid pid, GLib.Error? err) {
@@ -362,14 +362,25 @@ Gdk.RGBA rgba_from_string (string value) {
 }
 
 string get_starting_directory (Vte.Terminal? term) {
-  if (term?.current_directory_uri != null) {
-    try {
-      return GLib.Filename.from_uri(term.current_directory_uri, null);
-    }
-    catch (GLib.ConvertError err) {
-    }
-  }
+  if (term?.current_directory_uri == null)
+    return GLib.Environment.get_home_dir();
 
-  return GLib.Environment.get_home_dir();
+  try {
+    return GLib.Filename.from_uri(term.current_directory_uri, null);
+  } 
+  catch (GLib.ConvertError err) {
+    return GLib.Environment.get_home_dir();
+  }
+}
+
+string? get_pid_cmdline (int pid) {
+  string? cmdline = null;
+  try {
+    FileUtils.get_contents(@"/proc/$pid/cmdline", out cmdline);
+    return cmdline;
+  }
+  catch (GLib.FileError err) {
+    return null;
+  }
 }
 

@@ -17,7 +17,7 @@ class Litter.Application : Adw.Application {
   public Application () {
     Object(
       flags: GLib.ApplicationFlags.NON_UNIQUE,
-      version: "0.2.5",
+      version: "0.2.6",
       application_id: "pro.provaznik.Litter");
   }
 
@@ -278,7 +278,8 @@ class Litter.Application : Adw.Application {
   void on_terminal_bell (Vte.Terminal term) {
     var? page = this.tabview.get_page(term);
     if (page != null)
-      page.set_needs_attention(true);
+      if (page != this.tabview.selected_page)
+        page.set_needs_attention(true);
   }
 
   void on_terminal_child_death (Vte.Terminal term, int status) {

@@ -81,10 +81,7 @@ class Litter.Application : Adw.Application {
     this.tabhead.add_css_class("inline");
 
     this.tabview.close_page.connect(this.on_close_page);
-    this.tabview.notify["selected-page"].connect(() => {
-      this.content.set_visible_child_name("workspace");
-      this.do_update_highlight();
-    });
+    this.tabview.notify["selected-page"].connect(this.on_select_page);
 
     // Placeholder
 
@@ -198,6 +195,7 @@ class Litter.Application : Adw.Application {
 
     // These have to be disconnected at some point
 
+    term.bell.connect(this.on_terminal_bell);
     term.child_exited.connect(this.on_terminal_child_death);
     term.termprop_changed.connect(this.on_terminal_termprop_changed);
 
@@ -271,9 +269,22 @@ class Litter.Application : Adw.Application {
     return true;
   }
 
+  void on_select_page () {
+    this.do_update_highlight();
+    this.tabview.selected_page?.set_needs_attention(false);
+    this.content.set_visible_child_name("workspace");
+  }
+
+  void on_terminal_bell (Vte.Terminal term) {
+    var? page = this.tabview.get_page(term);
+    if (page != null)
+      page.set_needs_attention(true);
+  }
+
   void on_terminal_child_death (Vte.Terminal term, int status) {
     print("Child death with %d status\n", status);
 
+    term.bell.disconnect(this.on_terminal_bell);
     term.child_exited.disconnect(this.on_terminal_child_death);
     term.termprop_changed.disconnect(this.on_terminal_termprop_changed);
 

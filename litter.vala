@@ -17,7 +17,7 @@ class Litter.Application : Adw.Application {
   public Application () {
     Object(
       flags: GLib.ApplicationFlags.NON_UNIQUE,
-      version: "0.2.2",
+      version: "0.2.5",
       application_id: "pro.provaznik.Litter");
   }
 

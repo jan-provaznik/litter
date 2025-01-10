@@ -5,3 +5,10 @@
   background: var(--accent-purple);
 }
 
+tab.needs-attention {
+  background: var(--accent-bg-color);
+}
+tab.needs-attention indicator {
+  background: #00000000;
+}
+

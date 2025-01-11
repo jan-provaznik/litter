@@ -1,8 +1,10 @@
 .hl-cmd-user-root {
   background: var(--destructive-bg-color);
+  color: var(--destructive-fg-color);
 }
 .hl-cmd-task-remote {
   background: var(--accent-purple);
+  color: var(--destructive-fg-color);
 }
 
 tab.needs-attention {
@@ -10,5 +12,9 @@ tab.needs-attention {
 }
 tab.needs-attention indicator {
   background: #00000000;
+}
+
+.terminal {
+  padding: 8px;
 }
 

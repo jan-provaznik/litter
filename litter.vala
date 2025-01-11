@@ -55,12 +55,17 @@ class Litter.Application : Adw.Application {
     action = new GLib.SimpleAction("font-size-inc", null);
     action.activate.connect(this.on_action_font_size_inc);
     this.add_action(action);
-    this.set_accels_for_action("app.font-size-inc", { "<Control>plus" });
+    this.set_accels_for_action("app.font-size-inc", { "<Control>plus", "<Control>equal" });
 
     action = new GLib.SimpleAction("font-size-dec", null);
     action.activate.connect(this.on_action_font_size_dec);
     this.add_action(action);
     this.set_accels_for_action("app.font-size-dec", { "<Control>minus" });
+
+    action = new GLib.SimpleAction("font-size-one", null);
+    action.activate.connect(this.on_action_font_size_one);
+    this.add_action(action);
+    this.set_accels_for_action("app.font-size-one", { "<Control>0" });
 
     action = new GLib.SimpleAction("tab-create", null);
     action.activate.connect(this.on_action_tab_create);
@@ -68,20 +73,16 @@ class Litter.Application : Adw.Application {
     this.set_accels_for_action("app.tab-create", { "<Control><Shift>t" });
 
     this.hangman = new GLib.SimpleAction("control-d", null);
-    this.hangman.activate.connect(this.on_action_control_d);
+    this.hangman.activate.connect(this.on_action_hangman);
     this.hangman.set_enabled(false);
     this.add_action(this.hangman);
-    this.set_accels_for_action("app.control-d", { "<Control>d" });
+    this.set_accels_for_action("app.control-d", { "<Control>d", "<Control>c" });
 
     // TabView
 
     this.tabview = new Adw.TabView() {
       hexpand = true,
       vexpand = true,
-      margin_bottom = 8,
-      margin_start = 8,
-      margin_end = 8,
-      margin_top = 8,
 
       shortcuts = (
         Adw.TabViewShortcuts.CONTROL_TAB | 
@@ -92,7 +93,9 @@ class Litter.Application : Adw.Application {
       view = this.tabview,
       autohide = false,
       hexpand = true,
-      inverted = false
+      inverted = false,
+      expand_tabs = false,
+      can_focus = false
     };
     this.tabhead.add_css_class("inline");
 
@@ -172,9 +175,10 @@ class Litter.Application : Adw.Application {
     var page = this.tabview.append(term);
     this.tabview.set_selected_page(page);
 
+    term.add_css_class("terminal");
     term.set_colors(
       rgba_from_string("#ffffff"),
-      rgba_from_string("#00000000"), {
+      rgba_from_string("#242424"), {
         rgba_from_string("#241F31"),
         rgba_from_string("#C01C28"),
         rgba_from_string("#2EC27E"),
@@ -192,10 +196,9 @@ class Litter.Application : Adw.Application {
         rgba_from_string("#4FD2FD"),
         rgba_from_string("#F6F5F4")
       });
-    term.set_font(
-      Pango.FontDescription.from_string("hack normal 15"));
-    term.set_scrollback_lines(
-      -1);
+    term.set_font(Pango.FontDescription.from_string("hack normal 15"));
+    term.set_scrollback_lines(-1);
+    term.set_allow_hyperlink(true);
 
     term.spawn_async(
       Vte.PtyFlags.DEFAULT,
@@ -215,7 +218,7 @@ class Litter.Application : Adw.Application {
     term.termprop_changed.connect(this.on_terminal_termprop_changed);
 
     // :)
-    this.window.set_focus(term);
+    term.grab_focus();
   }
 
   int? get_set_last_pid (GLib.Object object, int? pid) {
@@ -316,6 +319,10 @@ class Litter.Application : Adw.Application {
     this.tabview.selected_page?.set_needs_attention(false);
     this.content.set_visible_child_name("workspace");
     this.hangman.set_enabled(false);
+
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.grab_focus();
   }
 
   void on_terminal_bell (Vte.Terminal term) {
@@ -365,7 +372,7 @@ class Litter.Application : Adw.Application {
     this.do_tab_create();
   }
 
-  void on_action_control_d () {
+  void on_action_hangman () {
     if (this.tabview.n_pages == 0)
       this.quit();
   }
@@ -392,6 +399,12 @@ class Litter.Application : Adw.Application {
     var? term = this.get_active_terminal();
     if (term != null)
       term.font_scale = Math.fmax(0.0, term.font_scale - 0.1);
+  }
+
+  void on_action_font_size_one () {
+    var? term = this.get_active_terminal();
+    if (term != null)
+      term.font_scale = 1.0;
   }
 
   // Really useful helpers

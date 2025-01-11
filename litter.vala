@@ -203,6 +203,26 @@ class Litter.Application : Adw.Application {
     this.window.set_focus(term);
   }
 
+  int? get_set_last_pid (GLib.Object object, int? pid) {
+    int? lastpid = object.get_data<int>("litter-last-pid");
+    object.set_data<int>("litter-last-pid", pid);
+    return lastpid;
+  }
+
+  string? get_last_css (GLib.Object object) {
+    return object.get_data<string>("litter-last-css");
+  }
+
+  void set_last_css (GLib.Object object, string? css) {
+    object.set_data<string>("litter-last-css", css);
+  }
+
+  void set_last_css_apply (GLib.Object object, string? value) {
+    this.set_last_css(object, value);
+    if (value != null)
+      this.headbox.add_css_class(value);
+  }
+
   void do_update_highlight () {
     var? term = get_active_terminal();
     if (term == null)
@@ -216,48 +236,53 @@ class Litter.Application : Adw.Application {
     if (tfd == 0)
       return;
 
+    // Remove highlight classes
+    this.headbox.remove_css_class("hl-cmd-user-root");
+    this.headbox.remove_css_class("hl-cmd-task-remote");
+
     // Get foreground process
     int pid = Posix.tcgetpgrp(tfd);
 
     // Slight optimization.
     //
-    // This might suffer from race conditions. Process
-    // identifiers (pid) may be eventually reused by the system.
+    // This might suffer from race conditions because a released process
+    // identifier (pid) may be eventually reused by the system.
 
-    int? old = term.get_data<int>("litter-last-pid");
-    term.set_data<int>("litter-last-pid", pid);
-
-    if (old != null)
-      if (old == pid)
-        return;
+    int? lastpid = this.get_set_last_pid(term, pid);
+    if (lastpid == pid) {
+      string? lastcss = this.get_last_css(term);
+      if (lastcss != null)
+        this.headbox.add_css_class(lastcss);
+      return;
+    }
 
     // Get foreground process owner
     Posix.Stat? buf = null;
     Posix.stat(@"/proc/$pid", out buf);
     int uid = (int) buf.st_uid;
 
-    // (1) Remove all highlights
-    this.headbox.remove_css_class("hl-cmd-user-root");
-    this.headbox.remove_css_class("hl-cmd-task-remote");
-
-    // (2) Highlight tasks running as root
+    // (A) Highlight tasks running as root
     if (uid == 0) {
-      this.headbox.add_css_class("hl-cmd-user-root");
+      this.set_last_css_apply(term, "hl-cmd-user-root");
       return;
     }
 
     // Get foreground process program name (from cmdline)
     string? cmdline = get_pid_cmdline(pid);
-    if (cmdline == null)
+    if (cmdline == null) {
+      this.set_last_css_apply(term, null);
       return;
+    }
 
     string cmdname = GLib.Path.get_basename(cmdline);
 
-    // (3) Highlight specific tasks, like ssh (and only ssh at this time)
+    // (B) Highlight specific tasks, like ssh (and only ssh at this time)
     if (cmdname == "ssh") {
-      this.headbox.add_css_class("hl-cmd-task-remote");
+      this.set_last_css_apply(term, "hl-cmd-task-remote");
       return;
     }
+
+    this.set_last_css_apply(term, null);
   }
 
   // Event handlers

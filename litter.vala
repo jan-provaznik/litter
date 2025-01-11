@@ -144,7 +144,7 @@ class Litter.Application : Adw.Application {
     menuitems.append("Reset font size", "app.font-size-one");
 
     var menubutton = new Gtk.MenuButton() {
-      primary = true,
+      primary = false,
       menu_model = menuitems,
       icon_name = "open-menu-symbolic",
       can_shrink = false,

@@ -94,8 +94,8 @@ class Litter.Application : Adw.Application {
       autohide = false,
       hexpand = true,
       inverted = false,
-      expand_tabs = false,
-      can_focus = false
+      can_focus = false,
+      // expand_tabs = false,
     };
     this.tabhead.add_css_class("inline");
 
@@ -137,9 +137,33 @@ class Litter.Application : Adw.Application {
 
     // Header
 
-    this.headbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    var menuitems = new GLib.Menu();
+    menuitems.append("New tab", "app.tab-create");
+    menuitems.append("Increase font size", "app.font-size-inc");
+    menuitems.append("Decrease font size", "app.font-size-dec");
+    menuitems.append("Reset font size", "app.font-size-one");
+
+    var menubutton = new Gtk.MenuButton() {
+      primary = true,
+      menu_model = menuitems,
+      icon_name = "open-menu-symbolic",
+      can_shrink = false,
+      
+      can_focus = false,
+      hexpand = false,
+      vexpand = false,
+      valign = Gtk.Align.CENTER
+    };
+    menubutton.add_css_class("flat");
+    menubutton.add_css_class("circular");
+
+    this.headbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0) {
+      margin_start = 4,
+      margin_end = 4 
+    };
     this.headbox.append(this.tabhead);
-    this.headbox.append(new Gtk.WindowControls(Gtk.PackType.END) { margin_end = 4 });
+    this.headbox.append(menubutton);
+    this.headbox.append(new Gtk.WindowControls(Gtk.PackType.END));
 
     var headerwrap = new Gtk.WindowHandle() {
       child = this.headbox

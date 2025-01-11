@@ -23,10 +23,16 @@ class Litter.Application : Adw.Application {
 
   public override void activate () {
     this.window = new Adw.ApplicationWindow (this) {
-      default_width = 1280,
-      default_height = 720,
       title = "Litter Terminal"
     };
+    this.window.present();
+
+    // Update default window geometry
+
+    var? geometry = get_screen_geometry(this.window);
+    if (geometry != null)
+      this.window.set_default_size(
+        geometry.width / 2, geometry.height / 2);
 
     // Action!
 
@@ -133,7 +139,6 @@ class Litter.Application : Adw.Application {
     // Window content
   
     this.window.set_content(layout);
-    this.window.present();
 
     // Start with a new terminal
 
@@ -421,5 +426,13 @@ string? get_pid_cmdline (int pid) {
   catch (GLib.FileError err) {
     return null;
   }
+}
+
+Gdk.Rectangle? get_screen_geometry (Gtk.Window window) {
+  var? monitor = window.display.get_monitor_at_surface(window.get_surface());
+  if (monitor == null)
+    return null;
+
+  return monitor.geometry;
 }
 

@@ -14,7 +14,7 @@ class Litter.Application : Adw.Application {
   private Adw.TabView? tabview = null;
   private Adw.TabBar? tabhead = null;
 
-  private GLib.SimpleAction? controld = null;
+  private GLib.SimpleAction? hangman = null;
 
   //
 
@@ -67,10 +67,10 @@ class Litter.Application : Adw.Application {
     this.add_action(action);
     this.set_accels_for_action("app.tab-create", { "<Control><Shift>t" });
 
-    this.controld = new GLib.SimpleAction("control-d", null);
-    this.controld.activate.connect(this.on_action_control_d);
-    this.controld.set_enabled(false);
-    this.add_action(this.controld);
+    this.hangman = new GLib.SimpleAction("control-d", null);
+    this.hangman.activate.connect(this.on_action_control_d);
+    this.hangman.set_enabled(false);
+    this.add_action(this.hangman);
     this.set_accels_for_action("app.control-d", { "<Control>d" });
 
     // TabView
@@ -306,7 +306,7 @@ class Litter.Application : Adw.Application {
     this.tabview.close_page_finish(page, true);
     if (this.tabview.n_pages == 0) {
       this.content.set_visible_child_name("placeholder");
-      this.controld.set_enabled(true);
+      this.hangman.set_enabled(true);
     }
     return true;
   }
@@ -315,7 +315,7 @@ class Litter.Application : Adw.Application {
     this.do_update_highlight();
     this.tabview.selected_page?.set_needs_attention(false);
     this.content.set_visible_child_name("workspace");
-    this.controld.set_enabled(false);
+    this.hangman.set_enabled(false);
   }
 
   void on_terminal_bell (Vte.Terminal term) {

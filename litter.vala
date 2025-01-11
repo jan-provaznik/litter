@@ -157,10 +157,8 @@ class Litter.Application : Adw.Application {
     menubutton.add_css_class("flat");
     menubutton.add_css_class("circular");
 
-    this.headbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0) {
-      margin_start = 4,
-      margin_end = 4 
-    };
+    this.headbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 0);
+    this.headbox.add_css_class("headbox");
     this.headbox.append(this.tabhead);
     this.headbox.append(menubutton);
     this.headbox.append(new Gtk.WindowControls(Gtk.PackType.END));

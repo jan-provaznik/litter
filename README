@@ -1,2 +1,17 @@
 Litter, a simple dark mode terminal for GNOME based on Vte. 
 
+  Shortcut          Alt. shortcut     Action
+  ===========================================================================
+  CTRL TAB                            Switch to next terminal tab
+  CTRL SHIFT TAB                      Switch to previous terminal tab
+
+  CTRL SHIFT t                        Open a new terminal tab
+
+  CTRL +            CTRL =            Scale font up
+  CTRL -                              Scale font down
+  CTRL 0                              Reset font scale
+
+  CTRL SHIFT v                        Clipboard: paste into terminal
+  CTRL SHIFT c                        Clipboard: copy selection from terminal
+  ===========================================================================
+

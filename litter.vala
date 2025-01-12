@@ -137,15 +137,17 @@ class Litter.Application : Adw.Application {
 
     // Header
 
-    var menuitems = new GLib.Menu();
-    menuitems.append("New tab", "app.tab-create");
-    menuitems.append("Increase font size", "app.font-size-inc");
-    menuitems.append("Decrease font size", "app.font-size-dec");
-    menuitems.append("Reset font size", "app.font-size-one");
+    var menubase = new GLib.Menu();
+    var menufont = new GLib.Menu();
+    menubase.append("New tab", "app.tab-create");
+    menubase.append_section(null, menufont);
+    menufont.append("Increase font size", "app.font-size-inc");
+    menufont.append("Decrease font size", "app.font-size-dec");
+    menufont.append("Reset to default size", "app.font-size-one");
 
     var menubutton = new Gtk.MenuButton() {
       primary = false,
-      menu_model = menuitems,
+      menu_model = menubase,
       icon_name = "open-menu-symbolic",
       can_shrink = false,
       

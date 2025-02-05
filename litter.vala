@@ -238,6 +238,7 @@ class Litter.Application : Adw.Application {
     // These have to be disconnected at some point
 
     term.bell.connect(this.on_terminal_bell);
+    term.contents_changed.connect(this.on_terminal_bell);
     term.child_exited.connect(this.on_terminal_child_death);
     term.termprop_changed.connect(this.on_terminal_termprop_changed);
 
@@ -360,6 +361,7 @@ class Litter.Application : Adw.Application {
     print("Child death with %d status\n", status);
 
     term.bell.disconnect(this.on_terminal_bell);
+    term.contents_changed.disconnect(this.on_terminal_bell);
     term.child_exited.disconnect(this.on_terminal_child_death);
     term.termprop_changed.disconnect(this.on_terminal_termprop_changed);
 

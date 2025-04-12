@@ -299,9 +299,12 @@ class Litter.Application : Adw.Application {
       return;
     }
 
-    // Get foreground process owner
+    // Get foreground process owner (the process might not exist)
     Posix.Stat? buf = null;
-    Posix.stat(@"/proc/$pid", out buf);
+    int has = Posix.stat(@"/proc/$pid", out buf);
+    if (has != 0)
+      return;
+
     int uid = (int) buf.st_uid;
 
     // (A) Highlight tasks running as root

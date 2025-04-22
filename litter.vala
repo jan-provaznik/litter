@@ -224,10 +224,12 @@ class Litter.Application : Adw.Application {
     term.set_scrollback_lines(-1);
     term.set_allow_hyperlink(true);
 
+    var preferred_shell_path = get_preferred_shell();
+
     term.spawn_async(
       Vte.PtyFlags.DEFAULT,
       starting_directory,
-      { "/bin/bash", "--login" },
+      { preferred_shell_path, "--login" },
       null,
       0,
       null,
@@ -475,6 +477,24 @@ string get_starting_directory (Vte.Terminal? term) {
   catch (GLib.ConvertError err) {
     return GLib.Environment.get_home_dir();
   }
+}
+
+string get_preferred_shell () {
+  string fallback = "/bin/bash";
+
+  string? path = GLib.Environment.get_variable("SHELL");
+  if (path == null)
+    return fallback;
+
+  Posix.Stat? statbuf;
+  int success = Posix.stat(path, out statbuf);
+  if (success != 0)
+    return fallback;
+
+  if ((statbuf.st_mode & Posix.S_IXUSR) != 0)
+    return path;
+
+  return fallback;
 }
 
 string? get_pid_cmdline (int pid) {

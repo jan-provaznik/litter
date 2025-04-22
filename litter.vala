@@ -202,7 +202,7 @@ class Litter.Application : Adw.Application {
     term.add_css_class("terminal");
     term.set_colors(
       rgba_from_string("#ffffff"),
-      rgba_from_string("##222226"), {
+      rgba_from_string("#222226"), {
         rgba_from_string("#241F31"),
         rgba_from_string("#C01C28"),
         rgba_from_string("#2EC27E"),
